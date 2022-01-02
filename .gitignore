@@ -1,4 +1,6 @@
 input/*
+output/*
 model_zoo/*
 results
 __pycache__
+.vscode
