@@ -2,41 +2,49 @@ MODLES = {
     'classicalSR s48 x2': {
         'task': 'classical_sr',
         'scale': 2,
+        'training_patch_size': 48,
         'path': 'model_zoo/swinir/001_classicalSR_DIV2K_s48w8_SwinIR-M_x2.pth',
     },
     'classicalSR s48 x3': {
         'task': 'classical_sr',
         'scale': 3,
+        'training_patch_size': 48,
         'path': 'model_zoo/swinir/001_classicalSR_DIV2K_s48w8_SwinIR-M_x3.pth',
     },
     'classicalSR s48 x4': {
         'task': 'classical_sr',
         'scale': 4,
+        'training_patch_size': 48,
         'path': 'model_zoo/swinir/001_classicalSR_DIV2K_s48w8_SwinIR-M_x4.pth',
     },
     'classicalSR s48 x8': {
         'task': 'classical_sr',
         'scale': 8,
+        'training_patch_size': 48,
         'path': 'model_zoo/swinir/001_classicalSR_DIV2K_s48w8_SwinIR-M_x8.pth',
     },
     'classicalSR s64 x2': {
         'task': 'classical_sr',
         'scale': 2,
+        'training_patch_size': 64,
         'path': 'model_zoo/swinir/001_classicalSR_DF2K_s64w8_SwinIR-M_x2.pth',
     },
     'classicalSR s64 x3': {
         'task': 'classical_sr',
         'scale': 3,
+        'training_patch_size': 64,
         'path': 'model_zoo/swinir/001_classicalSR_DF2K_s64w8_SwinIR-M_x3.pth',
     },
     'classicalSR s64 x4': {
         'task': 'classical_sr',
         'scale': 4,
+        'training_patch_size': 64,
         'path': 'model_zoo/swinir/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth',
     },
     'classicalSR s64 x8': {
         'task': 'classical_sr',
         'scale': 8,
+        'training_patch_size': 64,
         'path': 'model_zoo/swinir/001_classicalSR_DF2K_s64w8_SwinIR-M_x8.pth',
     },
     'lightweightSR x2': {

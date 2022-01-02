@@ -14,35 +14,52 @@ from models.network_swinir import SwinIR as net
 class Main:
 
     paths = []
-    selected_model = None
+    model_item = None
 
     def __init__(self) -> None:
+        self.init_ui()
+
+    def init_ui(self):
         window = tk.Tk()
         window.title('SwinIR')
         window.minsize(width=500, height=100)
 
-        tk.Button(window, text='get file', command=self.getPath).pack()
+        frame = tk.Frame(window, padx=20, pady=20)
+        frame.grid()
 
-        self.selected_model = tk.StringVar(window)
-        self.selected_model.set('choose one')
-        tk.OptionMenu(window, self.selected_model, *MODLES.keys()).pack()
+        tk.Button(frame, text='get file', command=self.get_paths).pack()
 
-        tk.Button(window, text='run', command=self.run).pack()
+        selected_model = tk.StringVar(frame)
+        selected_model.set('choose one')
+        tk.OptionMenu(
+            frame,
+            selected_model,
+            *MODLES.keys(),
+            command=self.set_model
+        ).pack()
+
+        tk.Button(frame, text='run', command=self.run).pack()
 
         window.mainloop()
 
-    def getPath(self):
+    def get_paths(self):
         self.paths = filedialog.askopenfilenames()
 
-    def run(self):
-        model_key = self.variable.get()
+    def set_model(self, model_key):
         if model_key in MODLES:
-            model_item = MODLES[self.variable.get()]
+            self.model_item = MODLES[model_key]
+
+    def run(self):
+        if self.model_item:
+            model_item = self.model_item
             model_path = model_item['path']
 
             if os.path.exists(model_path):
                 print(f'loading model from {model_path}')
-                self.run_model(model_item)
+                threading.Thread(
+                    target=self.run_model,
+                    args=[model_item]
+                ).start()
             else:
                 def download_model():
                     os.makedirs(os.path.dirname(model_path), exist_ok=True)
@@ -50,10 +67,13 @@ class Main:
                     r = requests.get(url, allow_redirects=True)
                     print(f'downloading model {model_path}')
                     open(model_path, 'wb').write(r.content)
-                    self.run_model(model_item)
+                    threading.Thread(
+                        target=self.run_model,
+                        args=[model_item]
+                    ).start()
                 threading.Thread(target=download_model).start()
 
-    def define_model(model_item):
+    def define_model(self, model_item):
         task = model_item['task']
 
         # 001 classical image sr
@@ -118,7 +138,7 @@ class Main:
 
         return model
 
-    def setup(model_item):
+    def setup(self, model_item):
         # 001 classical image sr/ 002 lightweight image sr
         if model_item['task'] in ['classical_sr', 'lightweight_sr']:
             border = model_item['scale']
@@ -141,7 +161,7 @@ class Main:
 
         return border, window_size
 
-    def process(img_lq, model, model_item, window_size):
+    def process(self, img_lq, model, model_item, window_size):
 
         tile_size = 400
         tile_overlap = 32
