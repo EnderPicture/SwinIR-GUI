@@ -14,12 +14,13 @@ from models.network_swinir import SwinIR as net
 class Main:
 
     paths = []
+    pathsVar = None
     model_item = None
 
     def __init__(self) -> None:
         self.init_ui()
 
-    def init_ui(self):
+    def init_ui(self) -> None:
         window = tk.Tk()
         window.title('SwinIR')
         window.minsize(width=500, height=100)
@@ -28,6 +29,9 @@ class Main:
         frame.grid()
 
         tk.Button(frame, text='get file', command=self.get_paths).pack()
+
+        self.pathsVar = tk.StringVar('')
+        tk.Label(frame, textvariable=self.pathsVar).pack()
 
         selected_model = tk.StringVar(frame)
         selected_model.set('choose one')
@@ -43,7 +47,9 @@ class Main:
         window.mainloop()
 
     def get_paths(self):
-        self.paths = filedialog.askopenfilenames()
+        self.paths = filedialog.askopenfilenames(
+            filetypes=[("Images", "*.jpg *.png"), ("All", "*.*")])
+        self.pathsVar.set("\n".join(str(x) for x in self.paths))
 
     def set_model(self, model_key):
         if model_key in MODLES:
@@ -161,17 +167,17 @@ class Main:
 
         return border, window_size
 
-    def process(self, img_lq, model, model_item, window_size):
+    def process(self, image, model, model_item, window_size):
 
         tile_size = 400
         tile_overlap = 32
 
         if tile_size is None:
             # test the image as a whole
-            output = model(img_lq)
+            output = model(image)
         else:
             # test the image tile by tile
-            b, c, h, w = img_lq.size()
+            b, c, h, w = image.size()
             tile = min(tile_size, h, w)
             assert tile % window_size == 0, "tile size should be a multiple of window_size"
             sf = model_item['scale']
@@ -179,12 +185,12 @@ class Main:
             stride = tile - tile_overlap
             h_idx_list = list(range(0, h-tile, stride)) + [h-tile]
             w_idx_list = list(range(0, w-tile, stride)) + [w-tile]
-            E = torch.zeros(b, c, h*sf, w*sf).type_as(img_lq)
+            E = torch.zeros(b, c, h*sf, w*sf).type_as(image)
             W = torch.zeros_like(E)
 
             for h_idx in h_idx_list:
                 for w_idx in w_idx_list:
-                    in_patch = img_lq[..., h_idx:h_idx+tile, w_idx:w_idx+tile]
+                    in_patch = image[..., h_idx:h_idx+tile, w_idx:w_idx+tile]
                     out_patch = model(in_patch)
                     out_patch_mask = torch.ones_like(out_patch)
 
