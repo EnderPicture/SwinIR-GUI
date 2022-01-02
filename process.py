@@ -7,7 +7,7 @@ from tkinter import filedialog, Text
 import cv2
 import numpy as np
 import torch
-from models import MODLES
+from models_config import MODLES
 from models.network_swinir import SwinIR as net
 
 
