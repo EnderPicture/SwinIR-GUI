@@ -7,6 +7,7 @@ from tkinter import filedialog, Text
 import cv2
 import numpy as np
 import torch
+from utils import util_calculate_psnr_ssim as util
 from models_config import MODLES
 from models.network_swinir import SwinIR as net
 
@@ -23,12 +24,11 @@ class Main:
     def init_ui(self) -> None:
         window = tk.Tk()
         window.title('SwinIR')
-        window.minsize(width=500, height=100)
 
         frame = tk.Frame(window, padx=20, pady=20)
         frame.grid()
 
-        tk.Button(frame, text='get file', command=self.get_paths).pack()
+        tk.Button(frame, text='select files', command=self.get_paths).pack()
 
         self.pathsVar = tk.StringVar('')
         tk.Label(frame, textvariable=self.pathsVar).pack()
@@ -169,7 +169,7 @@ class Main:
 
     def process(self, image, model, model_item, window_size):
 
-        tile_size = 400
+        tile_size = window_size*50
         tile_overlap = 32
 
         if tile_size is None:
@@ -216,8 +216,8 @@ class Main:
 
             print(img_name)
 
-            image = cv2.imread(path, cv2.IMREAD_COLOR).astype(
-                np.float32) / 255.
+            image = self.get_image(model_item['task'], path)
+
             image = np.transpose(image if image.shape[2] == 1 else image[:, :, [
                 2, 1, 0]], (2, 0, 1))  # HCW-BGR to CHW-RGB
             image = torch.from_numpy(image).float().unsqueeze(
@@ -245,6 +245,27 @@ class Main:
             # float32 to uint8
             output = (output * 255.0).round().astype(np.uint8)
             cv2.imwrite(f'output/{img_name}_SwinIR.png', output)
+            print('done', img_name)
+
+    def get_image(self, task, path):
+
+        if task in ['classical_sr', 'lightweight_sr', 'real_sr', 'color_dn']:
+            img_lq = cv2.imread(path, cv2.IMREAD_COLOR).astype(
+                np.float32) / 255.
+
+        elif task in ['gray_dn']:
+            img_lq = cv2.imread(path, cv2.IMREAD_GRAYSCALE).astype(
+                np.float32) / 255.
+            img_lq = np.expand_dims(img_lq, axis=2)
+
+        # 006 JPEG compression artifact reduction (load gt image and generate lq image on-the-fly)
+        elif task in ['jpeg_car']:
+            img_lq = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+            if img_lq.ndim != 2:
+                img_lq = util.bgr2ycbcr(img_lq, y_only=True)
+            img_lq = np.expand_dims(img_lq, axis=2).astype(np.float32) / 255.
+
+        return img_lq
 
 
 Main()
