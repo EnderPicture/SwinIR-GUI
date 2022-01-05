@@ -10,13 +10,16 @@ import torch
 from utils import util_calculate_psnr_ssim as util
 from models_config import MODLES
 from models.network_swinir import SwinIR as net
-
+from PIL import Image, ImageTk
+import time
 
 class Main:
 
     paths = []
-    pathsVar = None
+    paths_var = None
     model_item = None
+    panel_a = None
+    panel_b = None
 
     def __init__(self) -> None:
         self.init_ui()
@@ -30,8 +33,13 @@ class Main:
 
         tk.Button(frame, text='select files', command=self.get_paths).pack()
 
-        self.pathsVar = tk.StringVar('')
-        tk.Label(frame, textvariable=self.pathsVar).pack()
+        self.paths_var = tk.StringVar('')
+        tk.Label(frame, textvariable=self.paths_var).pack()
+
+        self.panel_a = tk.Label(frame)
+        self.panel_a.pack()
+        self.panel_b = tk.Label(frame, image=None)
+        self.panel_b.pack()
 
         selected_model = tk.StringVar(frame)
         selected_model.set('choose one')
@@ -48,8 +56,31 @@ class Main:
 
     def get_paths(self):
         self.paths = filedialog.askopenfilenames(
-            filetypes=[("Images", "*.jpg *.png"), ("All", "*.*")])
-        self.pathsVar.set("\n".join(str(x) for x in self.paths))
+            filetypes=[("Images", "*.jpg *.png *.tif *.tiff"), ("All", "*.*")])
+        self.paths_var.set("\n".join(str(x) for x in self.paths))
+        if len(self.paths) > 0:
+            self.update_image(self.paths[0])
+
+    def update_image(self, path) -> None:
+        task = 'color_dn'
+        if self.model_item:
+            task = self.model_item['task']
+
+        now = time.time()
+
+        # img = self.get_image(task, path) * 255.
+        # b, g, r = cv2.split(img)
+        # img = cv2.merge((r, g, b)).astype(np.uint8)
+        # img = Image.fromarray(img)
+        img = Image.open(path)
+        img.thumbnail((500, 300), Image.BICUBIC)
+        img = ImageTk.PhotoImage(image=img)
+        self.panel_a.configure(image=img)
+        self.panel_a.image = img
+        # self.panel_a.image = image
+        # self.panel_a.pack()
+
+        print(time.time() - now)
 
     def set_model(self, model_key):
         if model_key in MODLES:
@@ -243,8 +274,10 @@ class Main:
                 # CHW-RGB to HCW-BGR
                 output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
             # float32 to uint8
-            output = (output * 255.0).round().astype(np.uint8)
-            cv2.imwrite(f'output/{img_name}_SwinIR.png', output)
+            output = (output * 65535.0).round().astype(np.uint16)
+            cv2.imwrite(f'output/{img_name}_SwinIR.tif', output)
+            # output = (output * 255.0).round().astype(np.uint8)
+            # cv2.imwrite(f'output/{img_name}_SwinIR.png', output)
             print('done', img_name)
 
     def get_image(self, task, path):
