@@ -10,7 +10,7 @@ import torch
 from utils import util_calculate_psnr_ssim as util
 from models_config import MODLES
 from models.network_swinir import SwinIR as net
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 import time
 
 
@@ -37,15 +37,16 @@ class Main:
         self.paths_var = tk.StringVar("")
         tk.Label(frame, textvariable=self.paths_var).pack()
 
-        self.panel_a = ImageDisplay(frame)
+        self.panel_a = ImageDisplay(frame, 500, 500)
         self.panel_b = tk.Label(frame, image=None)
         self.panel_b.pack()
 
         selected_model = tk.StringVar(frame)
-        selected_model.set("choose one")
+        selected_model.set(list(MODLES.keys())[0])
         tk.OptionMenu(
             frame, selected_model, *MODLES.keys(), command=self.set_model
         ).pack()
+        self.set_model(selected_model.get())
 
         tk.Button(frame, text="run", command=self.run).pack()
 
@@ -60,15 +61,11 @@ class Main:
             self.update_image(self.paths[0])
 
     def update_image(self, path) -> None:
-        task = "color_dn"
         if self.model_item:
-            task = self.model_item["task"]
+            border, window_size = self.setup(self.model_item)
 
-        now = time.time()
+            self.panel_a.set_image(path, window_size)
 
-        self.panel_a.set_image(path, task, self.get_image)
-
-        print(time.time() - now)
 
     def set_model(self, model_key):
         if model_key in MODLES:
@@ -371,17 +368,48 @@ class Main:
 
 class ImageDisplay:
     label = None
-    img_raw_small = None
-    width = 10
-    height = 10
+    img = None
+    img_tk = None
+    width = 0
+    height = 0
+
+    og_width = 0
+    og_height = 0
+
+    window_size = 0
+
+    x = 0
+    y = 0
 
     def __init__(self, root, width=100, height=100) -> None:
         self.width = width
         self.height = height
-        self.label = tk.Label(root, image=None)
-        self.label.pack()
+        label = tk.Label(root, image=None)
+        label.pack()
+        label.bind("<Motion>", self.motion)
+        label.bind("<Button-1>", self.click)
+        self.label = label
 
-    def set_image(self, path, task, fetch_methods):
+    def click(self, event):
+        if self.img:
+            x, y = event.x, event.y
+            img = self.img.copy()
+            draw = ImageDraw.Draw(img)
+            draw.rectangle((x, y, x + 10, y + 10))
+
+            image_tk = ImageTk.PhotoImage(img)
+            self.label.configure(image=image_tk)
+            self.img_tk = image_tk
+
+    def motion(self, event):
+        x, y = event.x, event.y
+        self.x = x
+        self.y = y
+        # print('{}, {}'.format(x, y))
+
+    def set_image(self, path, window_size):
+        self.window_size = window_size
+        print(window_size)
 
         # img = fetch_methods(task, path)
         # b, g, r = cv2.split(img * 255.0)
@@ -390,10 +418,14 @@ class ImageDisplay:
 
         img = Image.open(path)
 
-        img.thumbnail((500, 300), Image.BICUBIC)
-        img = ImageTk.PhotoImage(image=img)
-        self.label.configure(image=img)
-        self.img_raw_small = img
+        self.og_width = img.width
+        self.og_height = img.height
+
+        img.thumbnail((self.width, self.height), Image.BICUBIC)
+        img_tk = ImageTk.PhotoImage(image=img)
+        self.label.configure(image=img_tk)
+        self.img = img
+        self.img_tk = img_tk
 
 
 Main()
