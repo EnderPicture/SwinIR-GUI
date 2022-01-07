@@ -32,22 +32,27 @@ class Main:
         window.title("SwinIR")
 
         frame = tk.Frame(window, padx=20, pady=20)
-        frame.grid()
+        frame.pack()
 
         tk.Button(frame, text="select files", command=self.get_paths).pack()
 
         self.paths_var = tk.StringVar("")
         tk.Label(frame, textvariable=self.paths_var).pack()
 
+        image_container = tk.Frame(frame)
+
         self.panel_a = ImageDisplay(
-            frame,
+            image_container,
             width=500,
             height=500,
             process_preview=self.run_review,
             tile_power=10,
         )
-        self.panel_b = tk.Label(frame)
-        self.panel_b.pack()
+        self.panel_a.pack(side=tk.LEFT)
+        self.panel_b = tk.Label(image_container)
+        self.panel_b.pack(side=tk.RIGHT)
+
+        image_container.pack()
 
         selected_model = tk.StringVar(frame)
         selected_model.set(list(MODLES.keys())[0])
@@ -505,6 +510,9 @@ class ImageDisplay:
         self.label.configure(image=img_tk)
         self.img = img
         self.img_tk = img_tk
+
+    def pack(self, side=tk.TOP):
+        self.label.pack(side=side)
 
 
 Main()
