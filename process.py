@@ -22,6 +22,8 @@ class Main:
     panel_a = None
     panel_b = None
 
+    tile_power = 50
+
     def __init__(self) -> None:
         self.init_ui()
 
@@ -37,8 +39,14 @@ class Main:
         self.paths_var = tk.StringVar("")
         tk.Label(frame, textvariable=self.paths_var).pack()
 
-        self.panel_a = ImageDisplay(frame, 500, 500)
-        self.panel_b = tk.Label(frame, image=None)
+        self.panel_a = ImageDisplay(
+            frame,
+            width=500,
+            height=500,
+            process_preview=self.run_review,
+            tile_power=10,
+        )
+        self.panel_b = tk.Label(frame)
         self.panel_b.pack()
 
         selected_model = tk.StringVar(frame)
@@ -66,19 +74,21 @@ class Main:
 
             self.panel_a.set_image(path, window_size)
 
-
     def set_model(self, model_key):
         if model_key in MODLES:
             self.model_item = MODLES[model_key]
 
     def run(self):
+        self.fetch_model(self.run_model)
+
+    def fetch_model(self, callback, args=[]):
         if self.model_item:
             model_item = self.model_item
             model_path = model_item["path"]
 
             if os.path.exists(model_path):
                 print(f"loading model from {model_path}")
-                threading.Thread(target=self.run_model, args=[model_item]).start()
+                threading.Thread(target=callback, args=args).start()
             else:
 
                 def download_model():
@@ -87,7 +97,7 @@ class Main:
                     r = requests.get(url, allow_redirects=True)
                     print(f"downloading model {model_path}")
                     open(model_path, "wb").write(r.content)
-                    threading.Thread(target=self.run_model, args=[model_item]).start()
+                    threading.Thread(target=callback, args=args).start()
 
                 threading.Thread(target=download_model).start()
 
@@ -254,7 +264,7 @@ class Main:
 
     def process(self, image, model, model_item, window_size):
 
-        tile_size = window_size * 50
+        tile_size = window_size * self.tile_power
         tile_overlap = 32
 
         if tile_size is None:
@@ -295,7 +305,58 @@ class Main:
 
         return output
 
-    def run_model(self, model_item):
+    def run_review(self, path, x, y, w, h):
+        self.fetch_model(self.run_model_preview, [path, x, y, w, h])
+
+    def run_model_preview(self, path, x, y, w, h):
+        model_item = self.model_item
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        model = self.define_model(model_item)
+        model.eval()
+        model = model.to(device)
+
+        border, window_size = self.setup(model_item)
+
+        x, y, w, h = int(x), int(y), int(w), int(h)
+        image = self.get_image(model_item["task"], path)
+        image = image[y : y + h, x : x + w]  # crop
+        image = np.transpose(
+            image if image.shape[2] == 1 else image[:, :, [2, 1, 0]], (2, 0, 1)
+        )  # HCW-BGR to CHW-RGB
+        image = (
+            torch.from_numpy(image).float().unsqueeze(0).to(device)
+        )  # CHW-RGB to NCHW-RGB
+
+        with torch.no_grad():
+            # pad input image to be a multiple of window_size
+            _, _, h_old, w_old = image.size()
+            h_pad = (h_old // window_size + 1) * window_size - h_old
+            w_pad = (w_old // window_size + 1) * window_size - w_old
+            image = torch.cat([image, torch.flip(image, [2])], 2)[
+                :, :, : h_old + h_pad, :
+            ]
+            image = torch.cat([image, torch.flip(image, [3])], 3)[
+                :, :, :, : w_old + w_pad
+            ]
+            output = self.process(image, model, model_item, window_size)
+            output = output[
+                ..., : h_old * model_item["scale"], : w_old * model_item["scale"]
+            ]
+
+        output = output.data.squeeze().float().cpu().clamp_(0, 1).numpy()
+        if output.ndim == 3:
+            # CHW-RGB to HCW-BGR
+            output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
+
+        b, g, r = cv2.split(output * 255.0)
+        img = cv2.merge((r, g, b)).astype(np.uint8)
+        img = Image.fromarray(img)
+        img_tk = ImageTk.PhotoImage(image=img)
+        self.panel_b.configure(image=img_tk)
+        self.panel_b.img = img_tk
+
+    def run_model(self):
+        model_item = self.model_item
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = self.define_model(model_item)
@@ -373,17 +434,27 @@ class ImageDisplay:
     width = 0
     height = 0
 
+    path = ""
+
     og_width = 0
     og_height = 0
 
     window_size = 0
 
+    tile_power = 0
+
+    process_preview = None
+
     x = 0
     y = 0
 
-    def __init__(self, root, width=100, height=100) -> None:
+    def __init__(
+        self, root, width=100, height=100, tile_power=50, process_preview=None
+    ) -> None:
         self.width = width
         self.height = height
+        self.tile_power = tile_power
+        self.process_preview = process_preview
         label = tk.Label(root, image=None)
         label.pack()
         label.bind("<Motion>", self.motion)
@@ -393,13 +464,19 @@ class ImageDisplay:
     def click(self, event):
         if self.img:
             x, y = event.x, event.y
+            scale = self.og_width / self.img.width
+            size = self.window_size * self.tile_power / scale
             img = self.img.copy()
             draw = ImageDraw.Draw(img)
-            draw.rectangle((x, y, x + 10, y + 10))
+            draw.rectangle((x, y, x + size, y + size))
 
             image_tk = ImageTk.PhotoImage(img)
             self.label.configure(image=image_tk)
             self.img_tk = image_tk
+
+            self.process_preview(
+                self.path, x * scale, y * scale, size * scale, size * scale
+            )
 
     def motion(self, event):
         x, y = event.x, event.y
@@ -415,6 +492,8 @@ class ImageDisplay:
         # b, g, r = cv2.split(img * 255.0)
         # img = cv2.merge((r, g, b)).astype(np.uint8)
         # img = Image.fromarray(img)
+
+        self.path = path
 
         img = Image.open(path)
 
