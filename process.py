@@ -24,7 +24,7 @@ class Main:
 
     preview_size = 500
 
-    tile_power = 50
+    tile_power = 35
 
     def __init__(self) -> None:
         self.init_ui()
@@ -316,6 +316,8 @@ class Main:
         self.fetch_model(self.run_model_preview, [path, x, y, w, h])
 
     def run_model_preview(self, path, x, y, w, h):
+        torch.cuda.empty_cache()
+
         model_item = self.model_item
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = self.define_model(model_item)
@@ -355,17 +357,24 @@ class Main:
             # CHW-RGB to HCW-BGR
             output = np.transpose(output[[2, 1, 0], :, :], (1, 2, 0))
 
-        b, g, r = cv2.split(output * 255.0)
-        img = cv2.merge((r, g, b)).astype(np.uint8)
+        split = cv2.split(output * 255.0)
+        if len(split) > 1:
+            r, g, b = split
+            img = cv2.merge((r, g, b)).astype(np.uint8)
+        else:
+            l = split[0]
+            img = cv2.merge((l, l, l)).astype(np.uint8)
+
         img = Image.fromarray(img)
-        img = img.resize((self.preview_size, self.preview_size), Image.NEAREST)
+        img = img.resize((self.preview_size, self.preview_size), Image.BILINEAR)
         img_tk = ImageTk.PhotoImage(image=img)
         self.panel_b.configure(image=img_tk)
         self.panel_b.img = img_tk
 
     def run_model(self):
-        model_item = self.model_item
+        torch.cuda.empty_cache()
 
+        model_item = self.model_item
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = self.define_model(model_item)
         model.eval()
