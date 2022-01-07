@@ -22,6 +22,8 @@ class Main:
     panel_a = None
     panel_b = None
 
+    preview_size = 500
+
     tile_power = 50
 
     def __init__(self) -> None:
@@ -43,8 +45,8 @@ class Main:
 
         self.panel_a = ImageDisplay(
             image_container,
-            width=500,
-            height=500,
+            width=self.preview_size,
+            height=self.preview_size,
             process_preview=self.run_review,
             tile_power=10,
         )
@@ -356,6 +358,7 @@ class Main:
         b, g, r = cv2.split(output * 255.0)
         img = cv2.merge((r, g, b)).astype(np.uint8)
         img = Image.fromarray(img)
+        img = img.resize((self.preview_size, self.preview_size), Image.NEAREST)
         img_tk = ImageTk.PhotoImage(image=img)
         self.panel_b.configure(image=img_tk)
         self.panel_b.img = img_tk
@@ -468,9 +471,19 @@ class ImageDisplay:
 
     def click(self, event):
         if self.img:
-            x, y = event.x, event.y
+
             scale = self.og_width / self.img.width
             size = self.window_size * self.tile_power / scale
+            x, y = event.x - size / 2, event.y - size / 2
+            if x < 0:
+                x = 0
+            if y < 0:
+                y = 0
+            if x + size > self.img.width:
+                x = self.img.width - size
+            if y + size > self.img.height:
+                y = self.img.height - size
+
             img = self.img.copy()
             draw = ImageDraw.Draw(img)
             draw.rectangle((x, y, x + size, y + size))
