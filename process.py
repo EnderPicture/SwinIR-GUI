@@ -335,8 +335,14 @@ class Main:
 
         # set preview window
 
-        b, g, r = cv2.split(image * 255.0)
-        og_img = cv2.merge((r, g, b)).astype(np.uint8)
+        split = cv2.split(image * 255.0)
+        if len(split) > 1:
+            b, g, r = split
+            og_img = cv2.merge((r, g, b)).astype(np.uint8)
+        else:
+            l = split[0]
+            og_img = cv2.merge((l, l, l)).astype(np.uint8)
+
         og_img = Image.fromarray(og_img)
         og_img = og_img.resize((self.preview_size, self.preview_size), Image.BILINEAR)
         og_img_tk = ImageTk.PhotoImage(image=og_img)
@@ -378,7 +384,6 @@ class Main:
         else:
             l = split[0]
             img = cv2.merge((l, l, l)).astype(np.uint8)
-
 
         img = Image.fromarray(img)
         img = img.resize((self.preview_size, self.preview_size), Image.BILINEAR)
