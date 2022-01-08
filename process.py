@@ -21,6 +21,7 @@ class Main:
     model_item = None
     panel_a = None
     panel_b = None
+    panel_c = None
 
     preview_size = 500
 
@@ -52,7 +53,9 @@ class Main:
         )
         self.panel_a.pack(side=tk.LEFT)
         self.panel_b = tk.Label(image_container)
-        self.panel_b.pack(side=tk.RIGHT)
+        self.panel_b.pack(side=tk.LEFT)
+        self.panel_c = tk.Label(image_container)
+        self.panel_c.pack(side=tk.LEFT)
 
         image_container.pack()
 
@@ -329,6 +332,17 @@ class Main:
         x, y, w, h = int(x), int(y), int(w), int(h)
         image = self.get_image(model_item["task"], path)
         image = image[y : y + h, x : x + w]  # crop
+
+        # set preview window
+
+        b, g, r = cv2.split(image * 255.0)
+        og_img = cv2.merge((r, g, b)).astype(np.uint8)
+        og_img = Image.fromarray(og_img)
+        og_img = og_img.resize((self.preview_size, self.preview_size), Image.BILINEAR)
+        og_img_tk = ImageTk.PhotoImage(image=og_img)
+        self.panel_b.configure(image=og_img_tk)
+        self.panel_b.img = og_img_tk
+
         image = np.transpose(
             image if image.shape[2] == 1 else image[:, :, [2, 1, 0]], (2, 0, 1)
         )  # HCW-BGR to CHW-RGB
@@ -359,17 +373,18 @@ class Main:
 
         split = cv2.split(output * 255.0)
         if len(split) > 1:
-            r, g, b = split
+            b, g, r = split
             img = cv2.merge((r, g, b)).astype(np.uint8)
         else:
             l = split[0]
             img = cv2.merge((l, l, l)).astype(np.uint8)
 
+
         img = Image.fromarray(img)
         img = img.resize((self.preview_size, self.preview_size), Image.BILINEAR)
         img_tk = ImageTk.PhotoImage(image=img)
-        self.panel_b.configure(image=img_tk)
-        self.panel_b.img = img_tk
+        self.panel_c.configure(image=img_tk)
+        self.panel_c.img = img_tk
 
     def run_model(self):
         torch.cuda.empty_cache()
