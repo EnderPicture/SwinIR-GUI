@@ -25,7 +25,7 @@ class Main:
 
     preview_size = 500
 
-    tile_power = 35
+    tile_power_var = None
 
     def __init__(self) -> None:
         self.init_ui()
@@ -66,6 +66,11 @@ class Main:
         ).pack()
         self.set_model(selected_model.get())
 
+        self.tile_power_var = tk.StringVar(frame)
+        tile_powers = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130]
+        self.tile_power_var.set(tile_powers[2])
+        tk.OptionMenu(frame, self.tile_power_var, *tile_powers).pack()
+
         tk.Button(frame, text="run", command=self.run).pack()
 
         window.mainloop()
@@ -74,7 +79,7 @@ class Main:
         self.paths = filedialog.askopenfilenames(
             filetypes=[("Images", "*.jpg *.png *.tif *.tiff"), ("All", "*.*")]
         )
-        # self.paths_var.set("\n".join(str(x) for x in self.paths))
+        self.paths_var.set("\n".join(str(x) for x in self.paths))
         if len(self.paths) > 0:
             self.update_image(self.paths[0])
 
@@ -274,7 +279,7 @@ class Main:
 
     def process(self, image, model, model_item, window_size):
 
-        tile_size = window_size * self.tile_power
+        tile_size = window_size * int(self.tile_power_var.get())
         tile_overlap = 32
 
         if tile_size is None:
