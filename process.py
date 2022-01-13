@@ -23,6 +23,8 @@ class Main:
     panel_b = None
     panel_c = None
 
+    status_var = None
+
     preview_size = 500
 
     tile_power_var = None
@@ -39,7 +41,7 @@ class Main:
 
         tk.Button(frame, text="select files", command=self.get_paths).pack()
 
-        self.paths_var = tk.StringVar("")
+        self.paths_var = tk.StringVar()
         tk.Label(frame, textvariable=self.paths_var).pack()
 
         image_container = tk.Frame(frame)
@@ -59,19 +61,23 @@ class Main:
 
         image_container.pack()
 
-        selected_model = tk.StringVar(frame)
+        selected_model = tk.StringVar()
         selected_model.set(list(MODLES.keys())[0])
         tk.OptionMenu(
             frame, selected_model, *MODLES.keys(), command=self.set_model
         ).pack()
         self.set_model(selected_model.get())
 
-        self.tile_power_var = tk.StringVar(frame)
+        self.tile_power_var = tk.StringVar()
         tile_powers = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130]
         self.tile_power_var.set(tile_powers[2])
         tk.OptionMenu(frame, self.tile_power_var, *tile_powers).pack()
 
         tk.Button(frame, text="run", command=self.run).pack()
+
+        self.status_var = tk.StringVar()
+        self.status_var.set('idle...')
+        tk.Label(frame, textvariable=self.status_var).pack()
 
         window.mainloop()
 
@@ -292,30 +298,39 @@ class Main:
             assert (
                 tile % window_size == 0
             ), "tile size should be a multiple of window_size"
-            sf = model_item["scale"]
+            scale_factor = model_item["scale"]
 
             stride = tile - tile_overlap
             h_idx_list = list(range(0, h - tile, stride)) + [h - tile]
             w_idx_list = list(range(0, w - tile, stride)) + [w - tile]
-            E = torch.zeros(b, c, h * sf, w * sf).type_as(image)
+            E = torch.zeros(b, c, h * scale_factor, w *
+                            scale_factor).type_as(image)
             W = torch.zeros_like(E)
 
-            for h_idx in h_idx_list:
-                for w_idx in w_idx_list:
-                    in_patch = image[..., h_idx : h_idx + tile, w_idx : w_idx + tile]
+            for y, h_idx in enumerate(h_idx_list):
+                for x, w_idx in enumerate(w_idx_list):
+
+                    self.status_var.set(
+                        f'processing {(y+1)*(x+1)}/{len(h_idx_list)*len(w_idx_list)} tiles')
+
+                    in_patch = image[..., h_idx: h_idx +
+                                     tile, w_idx: w_idx + tile]
                     out_patch = model(in_patch)
                     out_patch_mask = torch.ones_like(out_patch)
 
                     E[
                         ...,
-                        h_idx * sf : (h_idx + tile) * sf,
-                        w_idx * sf : (w_idx + tile) * sf,
+                        h_idx * scale_factor: (h_idx + tile) * scale_factor,
+                        w_idx * scale_factor: (w_idx + tile) * scale_factor,
                     ].add_(out_patch)
                     W[
                         ...,
-                        h_idx * sf : (h_idx + tile) * sf,
-                        w_idx * sf : (w_idx + tile) * sf,
+                        h_idx * scale_factor: (h_idx + tile) * scale_factor,
+                        w_idx * scale_factor: (w_idx + tile) * scale_factor,
                     ].add_(out_patch_mask)
+
+                    self.status_var.set(
+                        f'done {(y+1)*(x+1)}/{len(h_idx_list)*len(w_idx_list)} tiles')
             output = E.div_(W)
 
         return output
@@ -336,7 +351,7 @@ class Main:
 
         x, y, w, h = int(x), int(y), int(w), int(h)
         image = self.get_image(model_item["task"], path)
-        image = image[y : y + h, x : x + w]  # crop
+        image = image[y: y + h, x: x + w]  # crop
 
         # set preview window
 
@@ -349,7 +364,8 @@ class Main:
             og_img = cv2.merge((l, l, l)).astype(np.uint8)
 
         og_img = Image.fromarray(og_img)
-        og_img = og_img.resize((self.preview_size, self.preview_size), Image.BILINEAR)
+        og_img = og_img.resize(
+            (self.preview_size, self.preview_size), Image.BILINEAR)
         og_img_tk = ImageTk.PhotoImage(image=og_img)
         self.panel_b.configure(image=og_img_tk)
         self.panel_b.img = og_img_tk
@@ -391,7 +407,8 @@ class Main:
             img = cv2.merge((l, l, l)).astype(np.uint8)
 
         img = Image.fromarray(img)
-        img = img.resize((self.preview_size, self.preview_size), Image.BILINEAR)
+        img = img.resize(
+            (self.preview_size, self.preview_size), Image.BILINEAR)
         img_tk = ImageTk.PhotoImage(image=img)
         self.panel_c.configure(image=img_tk)
         self.panel_c.img = img_tk
@@ -415,7 +432,8 @@ class Main:
             image = self.get_image(model_item["task"], path)
 
             image = np.transpose(
-                image if image.shape[2] == 1 else image[:, :, [2, 1, 0]], (2, 0, 1)
+                image if image.shape[2] == 1 else image[:,
+                                                        :, [2, 1, 0]], (2, 0, 1)
             )  # HCW-BGR to CHW-RGB
             image = (
                 torch.from_numpy(image).float().unsqueeze(0).to(device)
@@ -453,10 +471,12 @@ class Main:
     def get_image(self, task, path):
 
         if task in ["classical_sr", "lightweight_sr", "real_sr", "color_dn"]:
-            img_lq = cv2.imread(path, cv2.IMREAD_COLOR).astype(np.float32) / 255.0
+            img_lq = cv2.imread(path, cv2.IMREAD_COLOR).astype(
+                np.float32) / 255.0
 
         elif task in ["gray_dn"]:
-            img_lq = cv2.imread(path, cv2.IMREAD_GRAYSCALE).astype(np.float32) / 255.0
+            img_lq = cv2.imread(path, cv2.IMREAD_GRAYSCALE).astype(
+                np.float32) / 255.0
             img_lq = np.expand_dims(img_lq, axis=2)
 
         # 006 JPEG compression artifact reduction (load gt image and generate lq image on-the-fly)
