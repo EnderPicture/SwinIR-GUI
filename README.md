@@ -21,11 +21,14 @@
     - click anywhere on the image to show expanded view and wait for ai enhanced results
   - dropdown #1
     - pre trained model selector
+    - `realSR L x4` is good for super resolution
+    - `color denoise 15-50` 50 being more powerful but removes more detail, is good for denoising needs
   - dropdown #2
     - tile size selector
     - tile size work with `window_size` and `overlap` to create final tile size
       - `window_size` is always `8` except for de-jpeg model, which is `7`
       - for example 50(tile size) * 8(window_size) + 32(overlap) = 432px * 432px tiles.
+      - 50 - 90 is good for 8gb vram card
   - batch run files through selected model, results in `/output` folder
 
 
