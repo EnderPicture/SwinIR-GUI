@@ -29,7 +29,10 @@
       - `window_size` is always `8` except for de-jpeg model, which is `7`
       - for example 50(tile size) * 8(window_size) + 32(overlap) = 432px * 432px tiles.
       - 50 - 90 is good for 8gb vram card
-  - batch run files through selected model, results in `/output` folder
+  - run button
+    - batch run files through selected model, results in `/output` folder
+  - status text
+    - shows program status and progress of image processing
 
 
 ## What is this

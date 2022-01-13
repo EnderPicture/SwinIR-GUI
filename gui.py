@@ -113,6 +113,7 @@ class Main:
             else:
 
                 def download_model():
+                    self.status_var.set(f'downloading model to {model_path}')
                     os.makedirs(os.path.dirname(model_path), exist_ok=True)
                     url = f"https://github.com/JingyunLiang/SwinIR/releases/download/v0.0/{os.path.basename(model_path)}"
                     r = requests.get(url, allow_redirects=True)
