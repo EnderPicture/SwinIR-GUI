@@ -22,7 +22,7 @@
   - dropdown #1
     - pre trained model selector
     - `realSR L x4` is good for super resolution
-    - `color denoise 15-50` 50 being more powerful but removes more detail, is good for denoising needs
+    - `color denoise 15-50` 50 being more powerful but removes more detail
   - dropdown #2
     - tile size selector
     - tile size work with `window_size` and `overlap` to create final tile size
