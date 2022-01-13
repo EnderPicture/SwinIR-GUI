@@ -34,7 +34,7 @@ class Main:
 
     def init_ui(self) -> None:
         window = tk.Tk()
-        window.title("SwinIR")
+        window.title("SwinIR GUI")
 
         frame = tk.Frame(window, padx=20, pady=20)
         frame.pack()
