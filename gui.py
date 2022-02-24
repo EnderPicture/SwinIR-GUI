@@ -312,7 +312,7 @@ class Main:
                 for x, w_idx in enumerate(w_idx_list):
 
                     self.status_var.set(
-                        f'processing {(y+1)*(x+1)}/{len(h_idx_list)*len(w_idx_list)} tiles')
+                        f'processing {(y*len(w_idx_list))+(x+1)}/{len(h_idx_list)*len(w_idx_list)} tiles')
 
                     in_patch = image[..., h_idx: h_idx +
                                      tile, w_idx: w_idx + tile]
